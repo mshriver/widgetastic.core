@@ -4,6 +4,7 @@ import allure
 import pytest
 
 import codecs
+import logging
 import os
 import sys
 
@@ -12,6 +13,15 @@ from selenium import webdriver
 from widgetastic.browser import Browser
 
 selenium_browser = None
+
+
+# Browser logger
+browser_logger = logging.getLogger('widgetastic_browser')
+out_hdlr = logging.StreamHandler(sys.stdout)
+out_hdlr.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_hdlr.setLevel(logging.DEBUG)
+browser_logger.addHandler(out_hdlr)
+browser_logger.setLevel(logging.DEBUG)
 
 
 class CustomBrowser(Browser):
@@ -37,7 +47,7 @@ def browser(selenium, httpserver, request):
     testfilename = path + '/testing_page.html'
     httpserver.serve_content(codecs.open(testfilename, mode='r', encoding='utf-8').read())
     selenium.get(httpserver.url)
-    return CustomBrowser(selenium)
+    return CustomBrowser(selenium, logger=browser_logger)
 
 
 def pytest_exception_interact(node, call, report):
