@@ -239,6 +239,55 @@ def test_table_with_widgets_and_assoc_column(browser):
         }}
 
 
+def test_table_row_ignore_bottom(browser):
+    class TestForm(View):
+        table = Table(
+            '#withwidgets',
+            column_widgets={
+                'Column 2': TextInput(locator='./input'),
+                'Column 3': TextInput(locator='./input')},
+            rows_ignore_bottom=1)
+
+    view = TestForm(browser)
+
+    assert view.read() == {
+        'table': [
+            {0: 'foo', 'Column 2': '', 'Column 3': 'foo col 3'}
+        ]}
+
+
+def test_table_row_ignore_top(browser):
+    class TestForm(View):
+        table = Table(
+            '#withwidgets',
+            column_widgets={
+                'Column 2': TextInput(locator='./input'),
+                'Column 3': TextInput(locator='./input')},
+            rows_ignore_top=1)
+
+    view = TestForm(browser)
+
+    assert view.read() == {
+        'table': [
+            {0: 'bar', 'Column 2': 'bar col 2', 'Column 3': ''}
+        ]}
+
+
+def test_table_row_ignore_bottom_and_top(browser):
+    class TestForm(View):
+        table = Table(
+            '#withwidgets',
+            column_widgets={
+                'Column 2': TextInput(locator='./input'),
+                'Column 3': TextInput(locator='./input')},
+            rows_ignore_bottom=1,
+            rows_ignore_top=1)
+
+    view = TestForm(browser)
+
+    assert view.read() == {'table': []}
+
+
 def test_simple_select(browser):
     class TestForm(View):
         select = Select(name='testselect1')

@@ -1236,26 +1236,39 @@ class Table(Widget):
         column_widgets: A mapping to widgets that are present in cells. Keys signify column name,
             value is the widget definition.
         assoc_column: Index or name of the column used for associative filling.
+        rows_ignore_top: Number of rows to ignore from top when reading/filling.
+        rows_ignore_bottom: Number of rows to ignore from bottom when reading/filling.
     """
     ROWS = './tbody/tr[./td]|./tr[not(./th) and ./td]'
     HEADER_IN_ROWS = './tbody/tr[1]/th'
     HEADERS = './thead/tr/th|./tr/th' + '|' + HEADER_IN_ROWS
     ROW_AT_INDEX = './tbody/tr[{0}]|./tr[not(./th)][{0}]'
 
+    ROOT = ParametrizedLocator('{@locator}')
+
     Row = TableRow
 
-    def __init__(self, parent, locator, column_widgets=None, assoc_column=None, logger=None):
+    def __init__(
+            self, parent, locator, column_widgets=None, assoc_column=None,
+            rows_ignore_top=None, rows_ignore_bottom=None, logger=None):
         Widget.__init__(self, parent, logger=logger)
         self.locator = locator
         self.column_widgets = column_widgets or {}
         self.assoc_column = assoc_column
+        self.rows_ignore_top = rows_ignore_top
+        self.rows_ignore_bottom = rows_ignore_bottom
 
     def __repr__(self):
         return '{}({!r}, column_widgets={!r})'.format(
             type(self).__name__, self.locator, self.column_widgets)
 
-    def __locator__(self):
-        return self.locator
+    def _process_negative_index(self, nindex):
+        """The semantics is pretty much the same like for ordinary list."""
+        rc = self.row_count
+        if (- nindex) > rc:
+            raise ValueError(
+                'Negative index {} wanted but we only have {} rows'.format(nindex, rc))
+        return rc + nindex
 
     def clear_cache(self):
         for item in [
@@ -1328,6 +1341,9 @@ class Table(Widget):
     def __getitem__(self, at_index):
         if not isinstance(at_index, int):
             raise TypeError('table indexing only accepts integers')
+        if at_index < 0:
+            # To mimic the list handling
+            at_index = self._process_negative_index(at_index)
         return self.Row(self, at_index, logger=self.logger)
 
     def row(self, *extra_filters, **filters):
@@ -1346,12 +1362,12 @@ class Table(Widget):
         How simple.
         """
         return self.browser.execute_script(
-            """\
-            var prev = []; var element = arguments[0];
-            while (element.previousElementSibling)
-                prev.push(element = element.previousElementSibling);
-            return prev.length;
-            """, row_el)
+            jsmin("""\
+            var p = []; var e = arguments[0];
+            while (e.previousElementSibling)
+                p.push(e = e.previousElementSibling);
+            return p.length;
+            """), row_el)
 
     def map_column(self, column):
         if isinstance(column, int):
@@ -1504,11 +1520,17 @@ class Table(Widget):
 
     def read(self):
         """Reads the table. Returns a list, every item in the list is contents read from the row."""
+        rows = list(self)
+        # Cut the unwanted rows if necessary
+        if self.rows_ignore_top is not None:
+            rows = rows[self.rows_ignore_top:]
+        if self.rows_ignore_bottom is not None and self.rows_ignore_bottom > 0:
+            rows = rows[:-self.rows_ignore_bottom]
         if self.assoc_column_position is None:
-            return [row.read() for row in self]
+            return [row.read() for row in rows]
         else:
             result = {}
-            for row in self:
+            for row in rows:
                 row_read = row.read()
                 try:
                     key = row_read.pop(self.header_index_mapping[self.assoc_column_position])
@@ -1537,6 +1559,10 @@ class Table(Widget):
             if not isinstance(value, (list, tuple)):
                 value = [value]
             return any(row.fill(value) for row, value in zip(self, value))
+
+    @property
+    def row_count(self):
+        return len(self.browser.elements(self.ROWS, parent=self))
 
 
 class Select(Widget):
