@@ -1261,6 +1261,8 @@ class Table(Widget):
         assoc_column: Index or name of the column used for associative filling.
         rows_ignore_top: Number of rows to ignore from top when reading/filling.
         rows_ignore_bottom: Number of rows to ignore from bottom when reading/filling.
+        top_ignore_fill: Whether to also strip these top rows for fill.
+        bottom_ignore_fill: Whether to also strip these top rows for fill.
     """
     ROWS = './tbody/tr[./td]|./tr[not(./th) and ./td]'
     HEADER_IN_ROWS = './tbody/tr[1]/th'
@@ -1273,13 +1275,16 @@ class Table(Widget):
 
     def __init__(
             self, parent, locator, column_widgets=None, assoc_column=None,
-            rows_ignore_top=None, rows_ignore_bottom=None, logger=None):
+            rows_ignore_top=None, rows_ignore_bottom=None, top_ignore_fill=False,
+            bottom_ignore_fill=False, logger=None):
         Widget.__init__(self, parent, logger=logger)
         self.locator = locator
         self.column_widgets = column_widgets or {}
         self.assoc_column = assoc_column
         self.rows_ignore_top = rows_ignore_top
         self.rows_ignore_bottom = rows_ignore_bottom
+        self.top_ignore_fill = top_ignore_fill
+        self.bottom_ignore_fill = bottom_ignore_fill
 
     def __repr__(self):
         return (
@@ -1601,13 +1606,22 @@ class Table(Widget):
             if not isinstance(value, (list, tuple)):
                 value = [value]
             total_values = len(value)
-            row_count = self.row_count
+            rows = list(self)
+            # Adapt the behaviour similar to read
+            if self.top_ignore_fill and self.rows_ignore_top is not None:
+                rows = rows[self.rows_ignore_top:]
+            if (
+                    self.bottom_ignore_fill and
+                    self.rows_ignore_bottom is not None and
+                    self.rows_ignore_bottom > 0):
+                rows = rows[:-self.rows_ignore_bottom]
+            row_count = len(rows)
             present_row_values = value[:row_count]
             if total_values > row_count:
                 extra_row_values = value[row_count:]
             else:
                 extra_row_values = []
-            changed = any(row.fill(value) for row, value in zip(self, present_row_values))
+            changed = any(row.fill(value) for row, value in zip(rows, present_row_values))
             for extra_value in extra_row_values:
                 if self[self.row_add()].fill(extra_value):
                     changed = True
