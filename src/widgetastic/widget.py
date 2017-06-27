@@ -16,7 +16,8 @@ from wait_for import wait_for
 
 from .browser import Browser, BrowserParentWrapper
 from .exceptions import (
-    NoSuchElementException, LocatorNotImplemented, WidgetOperationFailed, DoNotReadThisWidget)
+    NoSuchElementException, LocatorNotImplemented, WidgetOperationFailed, DoNotReadThisWidget,
+    RowNotFound)
 from .log import PrependParentsAdapter, create_widget_logger, logged, call_sig
 from .utils import (
     Widgetable, Fillable, ParametrizedLocator, ConstructorResolvable, attributize_string,
@@ -1347,7 +1348,11 @@ class Table(Widget):
         return self.Row(self, at_index, logger=self.logger)
 
     def row(self, *extra_filters, **filters):
-        return list(self.rows(*extra_filters, **filters))[0]
+        try:
+            return self.rows(*extra_filters, **filters).next()
+        except StopIteration:
+            raise RowNotFound(
+                'Row not found when using filters {!r}/{!r}'.format(extra_filters, filters))
 
     def __iter__(self):
         return self.rows()
