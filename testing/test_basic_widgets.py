@@ -288,6 +288,40 @@ def test_table_row_ignore_bottom_and_top(browser):
     assert view.read() == {'table': []}
 
 
+def test_table_dynamic_add_not_assoc(browser):
+    class MyTable(Table):
+        def row_add(self):
+            self.browser.click('//button[@id="dynamicadd"]')
+            return -1
+
+    class MyView(View):
+        table = MyTable(
+            '#dynamic',
+            column_widgets={
+                'First Name': TextInput(locator='./input'),
+                'Last Name': TextInput(locator='./input'),
+            })
+
+    view = MyView(browser)
+    assert view.table.read() == []
+    assert view.table.fill([{'First Name': 'John', 'Last Name': 'Doe'}])
+    assert view.table.read() == [{'ID': '1.', 'First Name': 'John', 'Last Name': 'Doe'}]
+    assert not view.table.fill([{'First Name': 'John', 'Last Name': 'Doe'}])
+    assert not view.table.fill(view.table.read())
+    changes = view.table.read()
+    changes[0]['First Name'] = 'Jane'
+    assert view.table.fill(changes)
+    del changes[0]['First Name']
+    changes[0][1] = 'John'
+    assert view.table.fill(changes)
+    assert view.table.read() == [{'ID': '1.', 'First Name': 'John', 'Last Name': 'Doe'}]
+
+    # Now the error test!
+    changes[0]['ID'] = 'blabber!'
+    with pytest.raises(TypeError):
+        view.table.fill(changes)
+
+
 def test_simple_select(browser):
     class TestForm(View):
         select = Select(name='testselect1')

@@ -1080,7 +1080,18 @@ class TableColumn(Widget, ClickableMixin):
         if self.widget is not None:
             return self.widget.fill(value)
         else:
-            raise TypeError('Cannot fill column {}, no widget'.format(self.column_name))
+            if self.text == str(value):
+                self.logger.debug(
+                    'Not filling %d because it already has value %r even though there is no widget',
+                    self.column_name or self.position,
+                    value)
+                return False
+            else:
+                raise TypeError(
+                    (
+                        'Cannot fill column {}, no widget and the value differs '
+                        '(wanted to fill {!r} but there is {!r}').format(
+                            self.column_name or self.position, value, self.text))
 
 
 class TableRow(Widget, ClickableMixin):
@@ -1158,7 +1169,18 @@ class TableRow(Widget, ClickableMixin):
                 raise ValueError(
                     'For filling rows with single value you need to specify assoc_column')
             value = {self.table.assoc_column_position: value}
-        return any(self[key].fill(value) for key, value in value.items() if value is not None)
+
+        changed = False
+        for key, value in value.items():
+            if value is None:
+                self.logger.info('Skipping fill of %r because the value is None', key)
+                continue
+            else:
+                self.logger.info('Filling column %r', key)
+
+            if self[key].fill(value):
+                changed = True
+        return changed
 
 
 class Table(Widget):
@@ -1567,6 +1589,8 @@ class Table(Widget):
                     row = self.row((self.assoc_column_position, key))
                 except RowNotFound:
                     row = self[self.row_add()]
+                    fill_value = copy(fill_value)
+                    fill_value[self.assoc_column_position] = key
                 if row.fill(fill_value):
                     changed = True
             return changed
@@ -1582,7 +1606,7 @@ class Table(Widget):
                 extra_row_values = []
             changed = any(row.fill(value) for row, value in zip(self, present_row_values))
             for extra_value in extra_row_values:
-                if self[self.row_add()].fill(fill_value):
+                if self[self.row_add()].fill(extra_value):
                     changed = True
             return changed
 
