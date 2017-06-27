@@ -106,7 +106,7 @@ class WidgetDescriptor(Widgetable):
         return widget
 
     def __repr__(self):
-        return '<Descriptor: {}, {!r}, {!r}>'.format(self.klass.__name__, self.args, self.kwargs)
+        return '{}{}'.format(self.klass.__name__, call_sig(self.args, self.kwargs))
 
 
 class ExtraData(object):
@@ -1260,8 +1260,11 @@ class Table(Widget):
         self.rows_ignore_bottom = rows_ignore_bottom
 
     def __repr__(self):
-        return '{}({!r}, column_widgets={!r})'.format(
-            type(self).__name__, self.locator, self.column_widgets)
+        return (
+            '{}({!r}, column_widgets={!r}, assoc_column={!r}, rows_ignore_top={!r}, '
+            'rows_ignore_bottom={!r})').format(
+                type(self).__name__, self.locator, self.column_widgets, self.assoc_column,
+                self.rows_ignore_top, self.rows_ignore_bottom)
 
     def _process_negative_index(self, nindex):
         """The semantics is pretty much the same like for ordinary list."""
@@ -1272,6 +1275,7 @@ class Table(Widget):
         return rc + nindex
 
     def clear_cache(self):
+        """Clear all cached properties."""
         for item in [
                 'headers', 'attributized_headers', 'header_index_mapping', 'index_header_mapping',
                 'assoc_column_position']:
@@ -1375,6 +1379,7 @@ class Table(Widget):
             """), row_el)
 
     def map_column(self, column):
+        """Return column position. Can accept int, normal name, attributized name."""
         if isinstance(column, int):
             return column
         else:
@@ -1388,6 +1393,7 @@ class Table(Widget):
 
     @cached_property
     def _is_header_in_body(self):
+        """Checks whether the header is erroneously specified in the body of table."""
         return len(self.browser.elements(self.HEADER_IN_ROWS, parent=self)) > 0
 
     def rows(self, *extra_filters, **filters):
@@ -1510,8 +1516,7 @@ class Table(Widget):
         for row_element in self.browser.elements(query, parent=self):
             row_pos = self._get_number_preceeding_rows(row_element)
             row_pos = row_pos if not self._is_header_in_body else row_pos + 1
-            rows.append(
-                self.Row(self, row_pos, logger=self.logger))
+            rows.append(self.Row(self, row_pos, logger=self.logger))
 
         for row in rows:
             if regexp_filters:
@@ -1567,6 +1572,7 @@ class Table(Widget):
 
     @property
     def row_count(self):
+        """Returns how many rows are currently in the table."""
         return len(self.browser.elements(self.ROWS, parent=self))
 
 
