@@ -1570,9 +1570,12 @@ class Table(Widget):
                     try:
                         key = row_read.pop(self.assoc_column_position)
                     except KeyError:
-                        raise ValueError(
-                            'The assoc_column={!r} could not be retrieved'.format(
-                                self.assoc_column))
+                        try:
+                            key = row_read.pop(self.assoc_column)
+                        except KeyError:
+                            raise ValueError(
+                                'The assoc_column={!r} could not be retrieved'.format(
+                                    self.assoc_column))
                 if key in result:
                     raise ValueError('Duplicate value for {}={!r}'.format(key, result[key]))
                 result[key] = row_read

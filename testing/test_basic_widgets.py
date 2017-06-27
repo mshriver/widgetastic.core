@@ -322,6 +322,29 @@ def test_table_dynamic_add_not_assoc(browser):
         view.table.fill(changes)
 
 
+def test_table_dynamic_add_assoc(browser):
+    class MyTable(Table):
+        def row_add(self):
+            self.browser.click('//button[@id="dynamicadd"]')
+            return -1
+
+    class MyView(View):
+        table = MyTable(
+            '#dynamic',
+            column_widgets={
+                'First Name': TextInput(locator='./input'),
+                'Last Name': TextInput(locator='./input'),
+            },
+            assoc_column='First Name')
+
+    view = MyView(browser)
+    assert view.table.read() == {}
+    assert view.table.row_count == 0
+    assert view.table.fill({'John': {'Last Name': 'Doe'}})
+    assert view.table.row_count == 1
+    assert view.table.read() == {'John': {'Last Name': 'Doe', 'ID': '1.'}}
+
+
 def test_simple_select(browser):
     class TestForm(View):
         select = Select(name='testselect1')
