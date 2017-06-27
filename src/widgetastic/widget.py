@@ -1555,6 +1555,32 @@ class Table(Widget):
             else:
                 yield row
 
+    def row_by_cell_or_widget_value(self, column, key):
+        """Row queries do not work with embedded widgets. Therefore you can use this method.
+
+        Args:
+            column: Position or name fo the column where you are looking the value for.
+            key: The value looked for
+
+        Returns:
+            :py:class:`TableRow` instance
+
+        Raises:
+            :py:class:`RowNotFound`
+        """
+        try:
+            return self.row((column, key))
+        except RowNotFound:
+            for row in self.rows():
+                if row[column].widget is None:
+                    continue
+                if not row[column].widget.is_displayed:
+                    continue
+                if row[column].widget.read() == key:
+                    return row
+            else:
+                raise RowNotFound('Row not found by {!r}/{!r}'.format(column, key))
+
     def read(self):
         """Reads the table. Returns a list, every item in the list is contents read from the row."""
         rows = list(self)
@@ -1594,7 +1620,7 @@ class Table(Widget):
             changed = False
             for key, fill_value in six.iteritems(value):
                 try:
-                    row = self.row((self.assoc_column_position, key))
+                    row = self.row_by_cell_or_widget_value(self.assoc_column_position, key)
                 except RowNotFound:
                     row = self[self.row_add()]
                     fill_value = copy(fill_value)

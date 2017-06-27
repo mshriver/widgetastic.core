@@ -343,6 +343,17 @@ def test_table_dynamic_add_assoc(browser):
     assert view.table.fill({'John': {'Last Name': 'Doe'}})
     assert view.table.row_count == 1
     assert view.table.read() == {'John': {'Last Name': 'Doe', 'ID': '1.'}}
+    assert view.table.row_count == 1
+    assert view.table.fill({'John': {'Last Name': 'Doh'}})
+    assert view.table.row_count == 1
+    assert view.table.read() == {'John': {'Last Name': 'Doh', 'ID': '1.'}}
+    assert view.table.fill({'Pepa': {'Last Name': 'Z Depa'}})
+    assert view.table.row_count == 2
+    assert view.table.read() == {
+        'John': {'Last Name': 'Doh', 'ID': '1.'},
+        'Pepa': {'Last Name': 'Z Depa', 'ID': '2.'}}
+    assert not view.table.fill(view.table.read())
+    assert not view.fill(view.read())
 
 
 def test_simple_select(browser):
