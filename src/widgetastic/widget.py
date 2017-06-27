@@ -1353,7 +1353,7 @@ class Table(Widget):
 
     def row(self, *extra_filters, **filters):
         try:
-            return self.rows(*extra_filters, **filters).next()
+            return six.next(self.rows(*extra_filters, **filters))
         except StopIteration:
             raise RowNotFound(
                 'Row not found when using filters {!r}/{!r}'.format(extra_filters, filters))
@@ -1561,19 +1561,39 @@ class Table(Widget):
         if isinstance(value, dict):
             if self.assoc_column_position is None:
                 raise TypeError('In order to support dict you need to specify assoc_column')
-            return any(
-                self.row((self.assoc_column_position, key)).fill(fill_value)
-                for key, fill_value
-                in six.iteritems(value))
+            changed = False
+            for key, fill_value in six.iteritems(value):
+                try:
+                    row = self.row((self.assoc_column_position, key))
+                except RowNotFound:
+                    row = self[self.row_add()]
+                if row.fill(fill_value):
+                    changed = True
+            return changed
         else:
             if not isinstance(value, (list, tuple)):
                 value = [value]
-            return any(row.fill(value) for row, value in zip(self, value))
+            total_values = len(value)
+            row_count = self.row_count
+            present_row_values = value[:row_count]
+            if total_values > row_count:
+                extra_row_values = value[row_count:]
+            else:
+                extra_row_values = []
+            changed = any(row.fill(value) for row, value in zip(self, present_row_values))
+            for extra_value in extra_row_values:
+                if self[self.row_add()].fill(fill_value):
+                    changed = True
+            return changed
 
     @property
     def row_count(self):
         """Returns how many rows are currently in the table."""
         return len(self.browser.elements(self.ROWS, parent=self))
+
+    def row_add(self):
+        raise NotImplementedError(
+            'You need to implement the row_add in order to use dynamic adding')
 
 
 class Select(Widget):
